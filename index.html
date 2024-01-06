@@ -1,0 +1,131 @@
+<html>
+
+<head>
+  <title>Float CC calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+  <main class="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
+    <div class="p-6 max-w-md w-full bg-white shadow-lg rounded-lg">
+      <h2 class="text-2xl font-bold text-gray-800">Health Calculator</h2>
+      <p> Quickly calculate the pay-off time for relocating your Command Center to a new base</p>
+      <form class="mt-4 space-y-4">
+        <div class="flex flex-col space-y-1">
+          <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for="workers">
+            How many workers are mining?
+          </label>
+          <input
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            id="workers" placeholder="Enter SCVs" type="number" />
+        </div>
+        <div class="flex flex-col space-y-1">
+          <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for="float">
+            How long would it take to float the CC? <!-- (Typically 35-45 seconds) -->
+          </label>
+          <input
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            id="float" placeholder="Enter seconds" type="number" />
+        </div>
+        <div class="flex flex-col space-y-1">
+          <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            for="minerals">
+            How many mineral patches are left?
+          </label>
+          <input
+            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            id="minerals" placeholder="Enter patches" type="number" max="8" min="0" />
+        </div>
+      </form>
+      <div class="mt-6">
+        <h3 class="text-xl font-semibold text-gray-700">Current rate</h3>
+        <p class="text-4xl font-bold text-gray-900 mt-2" id="current_rate"></p>
+      </div>
+      <div class="mt-6">
+        <h3 class="text-xl font-semibold text-gray-700">Future rate</h3>
+        <p class="text-4xl font-bold text-gray-900 mt-2" id="future_rate"></p>
+      </div>
+      <div class="mt-6">
+        <h3 class="text-xl font-semibold text-gray-700">It will pay off in</h3>
+        <p class="text-4xl font-bold text-gray-900 mt-2" id="payoff_time"></p>
+      </div>
+      <div class="mt-6">
+        <h3 class="text-xl font-semibold text-gray-700">Cost of flying</h3>
+        <p class="text-4xl font-bold text-gray-900 mt-2" id="flying_cost"></p>
+      </div>
+    </div>
+  </main>
+</body>
+<script>
+  function calculate_stuff(workers, patchNum, travelTime) {
+    // Close by patches mine out slower and can't be oversaturated so let's assume that they are the last standing.
+
+    // Assume 8 patches, blue minerals
+    const far = Math.max(patchNum - 4, 0);
+    const close = Math.max(4 - patchNum, 4);
+
+    // as per liquipedia https://liquipedia.net/starcraft2/Mining_Minerals#Approximate_Absolute_Rates
+    const close_rate = 51;
+    const far_rate = 41;
+    const oversaturated_rate = 20;
+
+    // Assuming optimal saturation
+    const workers_close = Math.min(close * 2, workers);
+    let remaining = workers - workers_close;
+    const workers_far = Math.max(Math.min(far * 2, remaining), 0);
+    remaining = Math.max(workers - workers_far, 0);
+    const workers_oversaturated = remaining * oversaturated_rate;
+
+    const future_workers_close = Math.min(4 * 2, workers);
+    remaining = workers - future_workers_close;
+    const future_workers_far = Math.max(Math.min(4 * 2, remaining), 0);
+    remaining = Math.max(workers - future_workers_far, 0);
+    const future_workers_oversaturated = remaining * oversaturated_rate;
+
+    const current_rate = close_rate * workers_close + far_rate * workers_far;
+    const future_rate = close_rate * future_workers_close + far_rate * future_workers_far;
+
+    const flying_cost = current_rate * travelTime / 60;
+
+    const delta = future_rate - current_rate;
+    const payoff = delta > 0 ? 60 * flying_cost / delta : 0;
+
+    return {
+      current_rate,
+      future_rate,
+      payoff,
+      flying_cost
+    };
+  }
+
+  function on_change() {
+    const workers = document.getElementById("workers").value;
+    const patchNum = document.getElementById("minerals").value;
+    const travelTime = document.getElementById("float").value;
+
+    if (workers === "" || patchNum === "" || travelTime === "") {
+      return;
+    }
+
+    const {
+      current_rate,
+      future_rate,
+      payoff,
+      flying_cost
+    } = calculate_stuff(workers, patchNum, travelTime);
+    console.log(current_rate, future_rate, payoff, flying_cost);
+
+    document.getElementById("current_rate").innerText = `${current_rate.toFixed(1)} minerals per minute`;
+    document.getElementById("future_rate").innerText = `${future_rate.toFixed(1)} minerals per minute`;
+    document.getElementById("payoff_time").innerText = payoff > 0 ? `${payoff.toFixed(0)} seconds` : "Never";
+    document.getElementById("flying_cost").innerText = `${flying_cost.toFixed(0)} minerals`;
+  }
+
+  document.getElementById("workers").addEventListener("change", on_change);
+  document.getElementById("minerals").addEventListener("change", on_change);
+  document.getElementById("float").addEventListener("change", on_change);
+</script>
+
+</html>
